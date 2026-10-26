@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radio VN - Kênh Phát Thanh AI Cá Nhân Hóa</title>
+  <meta name="description" content="Nền tảng phát thanh tin tức AI cá nhân hóa dành cho người bận rộn và tài xế tại Việt Nam" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            },
+            dark: {
+              900: '#070b14',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen pb-32 selection:bg-sky-500 selection:text-white">
+
+  <!-- ============================================================== -->
+  <!-- TOP NAVIGATION HEADER                                         -->
+  <!-- ============================================================== -->
+  <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="relative w-10 h-10 rounded-xl gradient-accent flex items-center justify-center shadow-lg shadow-sky-500/25">
+          <i data-lucide="radio" class="w-5 h-5 text-white"></i>
+          <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full live-indicator"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-xl tracking-tight gradient-text">Radio VN</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">AI STUDIO</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Phát thanh AI thông minh cho Người bận rộn & Bác tài</p>
+        </div>
+      </div>
+
+      <!-- Live Broadcast Status Badge -->
+      <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-slate-300">Hạ tầng: <strong class="text-emerald-400">Tin tức thời gian thực & AI Audio</strong></span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3">
+        <button id="btnOpenWizard" class="flex items-center gap-2 px-4 py-2 rounded-xl gradient-accent hover:opacity-90 transition font-semibold text-sm shadow-md shadow-sky-500/20 text-white">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Tạo Kênh Mới</span>
+        </button>
+
+        <!-- User Profile / Auth Dropdown Wrapper (Facebook Style) -->
+        <div class="relative" id="userMenuWrapper">
+          
+          <!-- Circular Avatar Button (38px x 38px) -->
+          <button id="btnUserMenu" type="button" aria-expanded="false" aria-haspopup="true"
+                  class="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-800/80 border border-transparent hover:border-slate-700/80 transition focus:outline-none group">
+            <div class="relative w-9 h-9 rounded-full ring-2 ring-sky-500/40 group-hover:ring-sky-400/80 transition overflow-hidden bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-sky-500/20" id="headerAvatar">
+              <span id="userAvatarInitials">TG</span>
+              <!-- Online status indicator dot -->
+              <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-[#070b14]" id="userOnlineDot"></span>
+            </div>
+            <div class="w-5 h-5 rounded-full bg-slate-800/90 flex items-center justify-center text-slate-400 group-hover:text-slate-200 transition">
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200" id="userChevron"></i>
+            </div>
+          </button>
+
+          <!-- Facebook-style Dropdown Popover Menu Card -->
+          <div id="userDropdownMenu"
+               class="hidden opacity-0 translate-y-2 transition-all duration-200 ease-out absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-[#0c1222] border border-slate-700/80 shadow-2xl shadow-black/80 z-50 overflow-hidden divide-y divide-slate-800">
+            
+            <!-- User Header Card -->
+            <div class="p-3.5 bg-slate-900/50 hover:bg-slate-800/40 transition cursor-pointer" id="dropdownUserCard">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-full ring-2 ring-sky-500/40 bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md" id="dropdownAvatar">
+                  <span id="dropdownAvatarInitials">TG</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-xs font-bold text-white truncate" id="dropdownUserName">Thính Giả Demo</h4>
+                  <p class="text-[11px] text-slate-400 truncate mt-0.5" id="dropdownUserEmail">demo@radiovn.ai</p>
+                  <span class="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30" id="dropdownUserBadge">
+                    Thành Viên Đã Xác Thực
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- LOGGED IN USER SECTION -->
+            <div id="dropdownLoggedInSection" class="p-2 space-y-1">
+              <!-- Trang cá nhân / Kênh của tôi -->
+              <button type="button" id="menuBtnMyChannels" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left hover:bg-slate-800/80 text-slate-200 hover:text-white transition group">
+                <div class="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-sky-500/20 group-hover:text-sky-400 text-slate-400 flex items-center justify-center transition">
+                  <i data-lucide="radio" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold text-white">Kênh của tôi</div>
+                  <div class="text-[10px] text-slate-400">Xem và quản lý các kênh bạn đã tạo</div>
+                </div>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition"></i>
+              </button>
+
+              <!-- Cài đặt & Quyền riêng tư -->
+              <button type="button" id="menuBtnSettings" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left hover:bg-slate-800/80 text-slate-200 hover:text-white transition group">
+                <div class="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-sky-500/20 group-hover:text-sky-400 text-slate-400 flex items-center justify-center transition">
+                  <i data-lucide="settings" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold text-white">Cài đặt & Tùy chọn</div>
+                  <div class="text-[10px] text-slate-400">Giọng đọc AI & Nguồn tin mặc định</div>
+                </div>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition"></i>
+              </button>
+
+              <!-- Giao diện / Chế độ tối -->
+              <button type="button" id="menuBtnTheme" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left hover:bg-slate-800/80 text-slate-200 hover:text-white transition group">
+                <div class="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-amber-500/20 group-hover:text-amber-400 text-slate-400 flex items-center justify-center transition">
+                  <i data-lucide="moon" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold text-white">Chế độ tối (Dark Mode)</div>
+                  <div class="text-[10px] text-slate-400">Giao diện tối ưu cho lái xe ban đêm</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 font-semibold border border-sky-500/30">
+                  Đang bật
+                </span>
+              </button>
+
+              <!-- Đăng xuất -->
+              <button type="button" id="menuBtnLogout" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left hover:bg-red-500/10 text-slate-200 hover:text-red-400 transition group border-t border-slate-800/60 mt-1 pt-2">
+                <div class="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-red-500/20 group-hover:text-red-400 text-slate-400 flex items-center justify-center transition">
+                  <i data-lucide="log-out" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold text-white group-hover:text-red-400">Đăng xuất</div>
+                  <div class="text-[10px] text-slate-400">Thoát khỏi phiên làm việc hiện tại</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- GUEST / CHƯA ĐĂNG NHẬP SECTION -->
+            <div id="dropdownGuestSection" class="p-4 space-y-3 hidden">
+              <div class="text-xs text-slate-300">
+                Đăng nhập để lưu các kênh phát thanh AI yêu thích và đồng bộ trên mọi thiết bị.
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" id="menuBtnLogin" class="py-2 px-3 rounded-xl gradient-accent text-white font-semibold text-xs text-center shadow-md shadow-sky-500/20 hover:opacity-90 transition">
+                  🔑 Đăng nhập
+                </button>
+                <button type="button" id="menuBtnRegister" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs text-center transition">
+                  📝 Đăng ký
+                </button>
+              </div>
+              <button type="button" id="menuBtnQuickDemo" class="w-full text-center text-[11px] text-sky-400 hover:underline pt-1">
+                ⚡ Đăng nhập nhanh tài khoản Demo
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- MAIN CONTAINER                                                -->
+  <!-- ============================================================== -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 pt-6 pb-12">
+    
+    <!-- Hero Banner with Quick Presets -->
+    <section class="mb-8 rounded-2xl p-6 lg:p-8 relative overflow-hidden border border-sky-500/20 bg-gradient-to-r from-slate-900 via-sky-950/40 to-slate-900 shadow-2xl">
+      <div class="absolute -right-16 -top-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold mb-3">
+          <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+          <span>Kênh phát thanh AI thế hệ mới</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight mb-2">
+          Biến Mọi Chủ Đề Thành Bản Tin <span class="gradient-text">Radio Trực Tiếp</span> Của Riêng Bạn
+        </h1>
+        <p class="text-slate-300 text-sm sm:text-base max-w-3xl mb-6">
+          Chỉ cần 1 câu lệnh prompt, AI tự động cào tin tức từ các báo chí chính thống uy tín, tóm tắt và phối kịch bản phát thanh chân thực với giọng đọc truyền cảm.
+        </p>
+
+        <!-- Quick Inspiration Pills -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold text-slate-400 mr-1">Gợi ý tạo nhanh:</span>
+          <button class="quick-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-sky-900/50 border border-slate-700/80 hover:border-sky-500/50 text-xs text-slate-200 transition"
+                  data-prompt="Tạo kênh tin tức Esports và game công nghệ, giọng đọc vui vẻ sôi nổi" data-topic="cong-nghe" data-tone="Sôi nổi">
+            🎮 Esports & Game
+          </button>
+          <button class="quick-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-sky-900/50 border border-slate-700/80 hover:border-sky-500/50 text-xs text-slate-200 transition"
+                  data-prompt="Kênh radio tin tức giao thông, mẹo lái xe an toàn và thời tiết cho bác tài" data-topic="giao-thong" data-tone="Vui vẻ">
+            🚗 Bản Tin Bác Tài
+          </button>
+          <button class="quick-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-sky-900/50 border border-slate-700/80 hover:border-sky-500/50 text-xs text-slate-200 transition"
+                  data-prompt="Điểm tin chứng khoán, giá vàng và khởi nghiệp công nghệ buổi sáng" data-topic="kinh-doanh" data-tone="Trang trọng">
+            📈 Tài Chính & Startup
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+      
+      <!-- Filter Tabs -->
+      <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-medium overflow-x-auto">
+        <button class="filter-tab active px-3.5 py-1.5 rounded-lg bg-sky-500 text-white font-semibold transition" data-filter="all">
+          Tất cả kênh (<span id="totalChannelsCount">3</span>)
+        </button>
+        <button class="filter-tab px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition" data-filter="live">
+          🔴 Đang Live 24/7
+        </button>
+        <button class="filter-tab px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition" data-filter="podcast">
+          🎙️ Podcast On-Demand
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative w-full sm:w-72">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input type="text" id="channelSearchInput" placeholder="Tìm kiếm kênh phát thanh..."
+               class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-sky-500 focus:outline-none text-xs text-slate-200 placeholder-slate-500 transition" />
+      </div>
+
+    </div>
+
+    <!-- Channels Grid -->
+    <div id="channelsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- Dynamic cards rendered by app.js -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="channelsEmptyState" class="hidden text-center py-16 px-4 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30">
+      <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mx-auto mb-4 text-slate-400">
+        <i data-lucide="radio-tower" class="w-8 h-8"></i>
+      </div>
+      <h3 class="text-lg font-bold text-white mb-1">Chưa có kênh phát thanh nào phù hợp</h3>
+      <p class="text-slate-400 text-sm mb-5">Hãy tạo kênh phát thanh AI đầu tiên của bạn bằng cách nhập Prompt yêu cầu.</p>
+      <button id="btnEmptyCreate" class="px-5 py-2.5 rounded-xl gradient-accent font-semibold text-sm text-white shadow-lg shadow-sky-500/20">
+        Tạo Kênh Ngay Bây Giờ
+      </button>
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- WIZARD MODAL 4 BƯỚC: TẠO KÊNH BẰNG PROMPT                      -->
+  <!-- ============================================================== -->
+  <div id="wizardModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-[#0c1222] border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-scale-in">
+      
+      <!-- Wizard Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/70">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Khởi Tạo Kênh Phát Thanh AI</h2>
+            <p class="text-xs text-slate-400">Quy trình 4 bước cá nhân hóa nội dung & giọng đọc</p>
+          </div>
+        </div>
+        <button id="btnCloseWizard" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Step Indicator Bar -->
+      <div class="px-6 pt-4 pb-2 bg-slate-900/40 border-b border-slate-800/60">
+        <div class="flex items-center justify-between text-xs font-semibold">
+          
+          <div class="flex items-center gap-2 step-nav-item" data-step="1">
+            <span class="step-badge w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center text-xs">1</span>
+            <span class="text-sky-400 hidden sm:inline">Prompt & Yêu cầu</span>
+          </div>
+          <div class="wizard-step-line" id="line-1"></div>
+
+          <div class="flex items-center gap-2 step-nav-item" data-step="2">
+            <span class="step-badge w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">2</span>
+            <span class="text-slate-400 hidden sm:inline">Nguồn Báo & Whitelist</span>
+          </div>
+          <div class="wizard-step-line" id="line-2"></div>
+
+          <div class="flex items-center gap-2 step-nav-item" data-step="3">
+            <span class="step-badge w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">3</span>
+            <span class="text-slate-400 hidden sm:inline">Cấu hình & Giọng đọc</span>
+          </div>
+          <div class="wizard-step-line" id="line-3"></div>
+
+          <div class="flex items-center gap-2 step-nav-item" data-step="4">
+            <span class="step-badge w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">4</span>
+            <span class="text-slate-400 hidden sm:inline">Biên tập AI & Lên Sóng</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Wizard Body (Scrollable) -->
+      <div class="p-6 overflow-y-auto flex-1 space-y-6">
+
+        <!-- ==================== BƯỚC 1: PROMPT & YÊU CẦU ==================== -->
+        <div id="wizardStep1" class="space-y-5">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Tên Kênh Phát Thanh *
+            </label>
+            <input type="text" id="wizChannelName" placeholder="VD: Radio Tin Nóng Esports 24/7"
+                   class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-sky-500 focus:outline-none text-sm text-white" />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Mô tả Yêu cầu qua Prompt Tự Do *
+              </label>
+              <span class="text-[11px] text-sky-400">AI sẽ tự động phân tích ngữ cảnh</span>
+            </div>
+            <textarea id="wizPrompt" rows="3" placeholder="Nhập mong muốn của bạn, VD: 'Tạo kênh tin tức Esports cập nhật giải đấu LMHT, game công nghệ mới với phong cách vui vẻ, dí dỏm cho game thủ'..."
+                      class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700/80 focus:border-sky-500 focus:outline-none text-sm text-white placeholder-slate-500 resize-none"></textarea>
+            
+            <!-- Quick prompt suggestions -->
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <span class="text-[11px] text-slate-400 self-center">Mẫu có sẵn:</span>
+              <button type="button" class="sample-prompt-pill text-[11px] px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                      data-text="Kênh tin tức công nghệ AI, phần mềm và khởi nghiệp dành cho kỹ sư">
+                💻 Kỹ sư phần mềm
+              </button>
+              <button type="button" class="sample-prompt-pill text-[11px] px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                      data-text="Bản tin tình hình giao thông, thời tiết và mẹo lái xe an toàn trên cao tốc">
+                🚗 Tài xế đường dài
+              </button>
+              <button type="button" class="sample-prompt-pill text-[11px] px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                      data-text="Điểm tin thị trường chứng khoán, tỷ giá ngoại tệ và bất động sản ngắn gọn">
+                📊 Nhà đầu tư tài chính
+              </button>
+            </div>
+          </div>
+
+          <!-- Chủ Đề & Phong Cách (Tones) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Chủ đề chính</label>
+              <select id="wizTopic" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 text-sm text-white focus:border-sky-500 focus:outline-none">
+                <option value="cong-nghe">Công Nghệ & Kỹ Thuật Số</option>
+                <option value="giao-thong">Giao Thông & Đời Sống Bác Tài</option>
+                <option value="kinh-doanh">Kinh Doanh & Tài Chính Thị Trường</option>
+                <option value="the-thao">Thể Thao & Esports</option>
+                <option value="tong-hop">Thời Sự Tổng Hợp Trong Ngày</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Phong cách dẫn (Tone)</label>
+              <select id="wizTone" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700/80 text-sm text-white focus:border-sky-500 focus:outline-none">
+                <option value="Vui vẻ">Vui vẻ & Thân thiện (Gần gũi, dí dỏm)</option>
+                <option value="Trang trọng">Trang trọng & Chuẩn mực (Phân tích, tin cậy)</option>
+                <option value="Sôi nổi">Sôi nổi & Nhiệt huyết (Tiết tấu nhanh, năng lượng)</option>
+                <option value="Trầm ấm">Trầm ấm & Thư giãn (Đài đêm muộn, sâu lắng)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Loại nội dung -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Định dạng thời lượng</label>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 text-center hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizContentType" value="quick" class="hidden" />
+                <div class="text-xs font-bold text-white">Tin Nhanh 3 Phút</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Điểm tin ngắn gọn</div>
+              </label>
+
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 text-center hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizContentType" value="continuous" checked class="hidden" />
+                <div class="text-xs font-bold text-white">Dòng Tin 24/7</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Cập nhật liên tục</div>
+              </label>
+
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 text-center hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizContentType" value="podcast" class="hidden" />
+                <div class="text-xs font-bold text-white">Podcast Chuyên Sâu</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Bình luận đa chiều</div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== BƯỚC 2: GỢI Ý & AI DUYỆT NGUỒN BÁO ==================== -->
+        <div id="wizardStep2" class="space-y-5 hidden">
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-1">
+              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+              Nguồn Báo Chí Chính Thống Đã Được AI Đề Xuất
+            </h3>
+            <p class="text-xs text-slate-400">
+              Dựa vào chủ đề bạn chọn, hệ thống tự động lọc 5-10 đầu báo điện tử uy tín đã được xác thực an toàn. Bạn có thể bật/tắt nguồn bên dưới.
+            </p>
+          </div>
+
+          <!-- Suggested Sources Checklist -->
+          <div id="wizSourcesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Add Custom URL with Whitelist Verification -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              Thêm Nguồn Tin Mới (Kiểm tra Whitelist Báo Chí Uy Tín)
+            </label>
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <i data-lucide="link" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="wizCustomUrl" placeholder="VD: https://tuoitre.vn hoặc genk.vn"
+                       class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-800 border border-slate-700 focus:border-sky-500 focus:outline-none text-xs text-white" />
+              </div>
+              <button type="button" id="btnCheckWhitelist" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs flex items-center gap-1.5 transition">
+                <i data-lucide="search-check" class="w-3.5 h-3.5"></i>
+                <span>Kiểm tra Whitelist</span>
+              </button>
+            </div>
+
+            <!-- Whitelist Verification Result Feedback Box -->
+            <div id="whitelistResultBox" class="hidden p-3 rounded-lg border text-xs">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== BƯỚC 3: CẤU HÌNH PHÁT & GIỌNG ĐỌC ==================== -->
+        <div id="wizardStep3" class="space-y-5 hidden">
+          <!-- Broadcast Mode -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Hình Thức Phát Thanh</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizBroadcastMode" value="live" checked class="hidden" />
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                  <span class="text-xs font-bold text-white">Live 24/7 Liên Tục</span>
+                </div>
+                <p class="text-[11px] text-slate-400">Tự động làm mới tin và phát sóng liên tục không ngừng.</p>
+              </label>
+
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizBroadcastMode" value="podcast" class="hidden" />
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="headphones" class="w-3.5 h-3.5 text-purple-400"></i>
+                  <span class="text-xs font-bold text-white">Podcast On-Demand</span>
+                </div>
+                <p class="text-[11px] text-slate-400">Nghe theo từng tập khi rảnh rỗi hoặc trên xe.</p>
+              </label>
+
+              <label class="cursor-pointer border border-slate-700 rounded-xl p-3 hover:border-sky-500/50 transition has-[:checked]:border-sky-500 has-[:checked]:bg-sky-500/10">
+                <input type="radio" name="wizBroadcastMode" value="schedule" class="hidden" />
+                <div class="flex items-center gap-2 mb-1">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-400"></i>
+                  <span class="text-xs font-bold text-white">Khung Giờ Cố Định</span>
+                </div>
+                <p class="text-[11px] text-slate-400">Phát tin sáng (7h00) & tin chiều tan tầm (17h30).</p>
+              </label>
+            </div>
+          </div>
+
+          <!-- AI Voice Selection Cards -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Chọn Giọng Đọc AI (MC Phát Thanh Viên)
+            </label>
+            <div id="wizVoicesGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== BƯỚC 4: BIÊN TẬP AI & PHÁT KÊNH ==================== -->
+        <div id="wizardStep4" class="space-y-5 hidden">
+          <!-- Pipeline Progress Simulation Bar -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-white flex items-center gap-2">
+                <i data-lucide="cpu" class="w-4 h-4 text-sky-400"></i>
+                Mô phỏng Pipeline AI Editorial
+              </span>
+              <span class="text-emerald-400 font-semibold" id="pipelineProgressText">Đang chuẩn bị...</span>
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center gap-2 text-slate-300" id="pipeStep1">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>1. Cào tóm tắt tin tức từ các báo đã duyệt</span>
+              </div>
+              <div class="flex items-center gap-2 text-slate-300" id="pipeStep2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>2. Ghép kịch bản dẫn Radio có câu chào & lời chuyển đoạn (Transitions)</span>
+              </div>
+              <div class="flex items-center gap-2 text-slate-300" id="pipeStep3">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>3. Cấu hình định dạng âm thanh & bộ sóng âm Canvas Visualizer</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Script Preview Container -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Xem Trước Kịch Bản Phát Thanh (AI Radio Script)
+              </label>
+              <div class="text-[11px] text-slate-400 flex items-center gap-3">
+                <span>Thời lượng ước tính: <strong class="text-sky-400" id="wizEstimatedDuration">03:30</strong></span>
+                <span>Số mục tin: <strong class="text-sky-400" id="wizHeadlinesCount">3</strong></span>
+              </div>
+            </div>
+
+            <div id="wizScriptPreviewBox" class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-300 font-mono leading-relaxed max-h-60 overflow-y-auto whitespace-pre-line">
+              Đang biên tập kịch bản...
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Wizard Footer Buttons -->
+      <div class="px-6 py-4 border-t border-slate-800 bg-slate-900/70 flex items-center justify-between">
+        <button type="button" id="btnWizPrev" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">
+          Quay lại
+        </button>
+
+        <div class="flex items-center gap-3">
+          <button type="button" id="btnWizNext" class="px-5 py-2 rounded-xl gradient-accent text-white text-xs font-semibold shadow-md shadow-sky-500/20 transition flex items-center gap-1.5">
+            <span>Tiếp theo</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+
+          <button type="button" id="btnWizFinish" class="hidden px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-2">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span>Lưu & Bắt Đầu Nghe Live</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- SCRIPT DETAIL MODAL (XEM KỊCH BẢN CHI TIẾT)                    -->
+  <!-- ============================================================== -->
+  <div id="scriptModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-[#0c1222] border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/70">
+        <div class="flex items-center gap-3">
+          <i data-lucide="file-text" class="w-5 h-5 text-sky-400"></i>
+          <div>
+            <h3 class="text-base font-bold text-white" id="scriptModalTitle">Kịch Bản Phát Thanh</h3>
+            <p class="text-xs text-slate-400" id="scriptModalSubtitle">Lời dẫn MC & Hiệu ứng âm thanh SFX</p>
+          </div>
+        </div>
+        <button id="btnCloseScriptModal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1">
+        <div id="scriptModalContent" class="text-xs leading-relaxed text-slate-300 font-mono whitespace-pre-line p-4 rounded-xl bg-slate-950 border border-slate-800">
+        </div>
+      </div>
+
+      <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/60 flex items-center justify-between">
+        <span class="text-xs text-slate-400">Tự động đồng bộ với luồng phát thanh</span>
+        <button id="btnCopyScript" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition flex items-center gap-1.5">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>Sao chép kịch bản</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- AUTH MODAL (ĐĂNG NHẬP / ĐĂNG KÝ)                               -->
+  <!-- ============================================================== -->
+  <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-[#0c1222] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/70">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
+            <i data-lucide="user" class="w-4 h-4 text-white"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">Tài Khoản Radio VN</h3>
+        </div>
+        <button id="btnCloseAuthModal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="flex border-b border-slate-800 text-xs font-semibold">
+        <button id="authTabLogin" class="flex-1 py-3 text-center text-sky-400 border-b-2 border-sky-500 bg-sky-500/5 transition">
+          Đăng Nhập
+        </button>
+        <button id="authTabRegister" class="flex-1 py-3 text-center text-slate-400 hover:text-slate-200 transition">
+          Đăng Ký Tài Khoản
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <!-- Error Alert -->
+        <div id="authAlert" class="hidden p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400"></div>
+
+        <!-- Full Name (Only for Register) -->
+        <div id="fieldFullName" class="hidden">
+          <label class="block text-xs font-medium text-slate-300 mb-1">Họ và tên</label>
+          <input type="text" id="authFullName" placeholder="Nguyễn Văn A"
+                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Tên đăng nhập</label>
+          <input type="text" id="authUsername" placeholder="demo_user"
+                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500" />
+        </div>
+
+        <div id="fieldEmail" class="hidden">
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email</label>
+          <input type="email" id="authEmail" placeholder="user@radiovn.ai"
+                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Mật khẩu</label>
+          <input type="password" id="authPassword" placeholder="••••••••"
+                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500" />
+        </div>
+
+        <button type="button" id="btnSubmitAuth" class="w-full py-2.5 rounded-xl gradient-accent text-white font-semibold text-xs shadow-lg shadow-sky-500/20 transition">
+          Đăng Nhập Ngay
+        </button>
+
+        <div class="pt-2 border-t border-slate-800 text-center">
+          <button type="button" id="btnQuickDemoLogin" class="text-xs text-sky-400 hover:underline">
+            ⚡ Sử dụng nhanh tài khoản Demo (demo_user / demo123)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- STICKY AUDIO PLAYER (TRÌNH PHÁT THANH CỐ ĐỊNH Ở DƯỚI MÀN HÌNH)  -->
+  <!-- ============================================================== -->
+  <div id="stickyPlayer" class="fixed bottom-0 left-0 right-0 z-40 glass-player shadow-2xl py-3 px-4 lg:px-8 border-t border-sky-500/20">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <!-- Track & Channel Info -->
+      <div class="flex items-center gap-3 w-full md:w-1/4">
+        <div class="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center group shadow-md shadow-sky-500/10">
+          <i data-lucide="radio" class="w-6 h-6 text-sky-400" id="playerThumbIcon"></i>
+          <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-ping" id="playerLiveDot"></span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <h4 class="text-xs font-bold text-white truncate" id="playerChannelTitle">Radio Công Nghệ & Khởi Nghiệp 24/7</h4>
+            <span class="text-[9px] font-bold px-1 py-0.2 rounded bg-red-500/20 text-red-400 border border-red-500/30" id="playerBadge">LIVE 24/7</span>
+          </div>
+          <p class="text-[11px] text-slate-400 truncate mt-0.5" id="playerHeadline">Bản tin: Trí tuệ nhân tạo thế hệ mới</p>
+          <div class="text-[10px] text-sky-400 flex items-center gap-1 mt-0.5" id="playerVoiceBadge">
+            <i data-lucide="mic" class="w-3 h-3"></i>
+            <span>MC Minh Quân</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & Audio Waveform / Scrubber -->
+      <div class="flex flex-col items-center gap-1.5 w-full md:w-2/4">
+        
+        <!-- Controls Buttons -->
+        <div class="flex items-center gap-4">
+          <button id="btnRewind" class="p-1.5 text-slate-400 hover:text-white transition" title="Lùi 10 giây">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </button>
+
+          <button id="btnPlayPause" class="w-10 h-10 rounded-full gradient-accent flex items-center justify-center text-white shadow-lg shadow-sky-500/30 hover:scale-105 transition">
+            <i data-lucide="play" class="w-5 h-5 ml-0.5" id="playIcon"></i>
+          </button>
+
+          <button id="btnForward" class="p-1.5 text-slate-400 hover:text-white transition" title="Tiến 10 giây">
+            <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Audio Wave Visualizer Canvas -->
+          <div class="hidden sm:block ml-2">
+            <canvas id="visualizerCanvas" width="130" height="28"></canvas>
+          </div>
+        </div>
+
+        <!-- Timeline Scrubber -->
+        <div class="flex items-center gap-2.5 w-full max-w-md">
+          <span class="text-[10px] font-mono text-slate-400 w-8 text-right" id="playerCurrentTime">00:00</span>
+          <div class="relative flex-1 flex items-center">
+            <input type="range" id="playerProgressBar" min="0" max="100" value="0" class="w-full cursor-pointer" />
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 w-8" id="playerDuration">03:30</span>
+        </div>
+
+      </div>
+
+      <!-- Extra Controls (Speed, Volume, Script Drawer) -->
+      <div class="flex items-center justify-end gap-3 w-full md:w-1/4">
+        
+        <!-- Speed selector -->
+        <select id="playerSpeedSelect" class="bg-slate-800 border border-slate-700 text-[11px] text-slate-300 rounded-lg px-1.5 py-1 focus:outline-none">
+          <option value="0.85">0.85x</option>
+          <option value="1.0" selected>1.0x</option>
+          <option value="1.2">1.2x</option>
+          <option value="1.35">1.35x</option>
+        </select>
+
+        <!-- Volume Slider -->
+        <div class="hidden lg:flex items-center gap-1.5">
+          <button id="btnMuteToggle" class="text-slate-400 hover:text-white transition">
+            <i data-lucide="volume-2" class="w-4 h-4" id="volumeIcon"></i>
+          </button>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" class="w-16 cursor-pointer" />
+        </div>
+
+        <!-- Script Drawer Button -->
+        <button id="btnOpenCurrentScript" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-sky-400 border border-slate-700 transition flex items-center gap-1.5">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Kịch bản</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Main Application Logic (Vanilla JS ES6) -->
+  <script type="module" src="app.js"></script>
+
+  <!-- Lucide icons init -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
