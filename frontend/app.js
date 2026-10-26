@@ -1,9 +1,9 @@
 /**
- * app.js - Xử lý toàn bộ logic giao diện, tương tác API, bộ phát sóng Audio Visualizer
- * và quy trình Wizard 4 bước của Radio VN.
+ * app.js - Mobile App Prototype Logic for Radio VN
+ * Quản lý điều hướng Tabs, Mini Player, Fullscreen Player, Visualizer và Wizard 4 bước.
  */
 
-// Xác định API Base URL linh hoạt: nếu chạy qua backend server port 8000 thì dùng origin, nếu mở file:// thì dùng http://localhost:8000
+// Xác định API Base URL linh hoạt
 const API_BASE_URL = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
   ? window.location.origin
   : 'http://localhost:8000';
@@ -20,6 +20,9 @@ const state = {
     email: 'demo@radiovn.ai'
   },
   token: localStorage.getItem('radiovn_token') || 'demo_token',
+
+  // Tab màn hình hiện tại ('screenHome' | 'screenMyChannels' | 'screenProfile')
+  activeTab: 'screenHome',
 
   // Danh sách kênh & bộ lọc
   channels: [],
@@ -51,12 +54,11 @@ const state = {
     previewData: null
   },
 
-  // Danh bạ giọng đọc AI
   voicesCatalog: []
 };
 
 // =============================================================================
-// WEB AUDIO & SPEECH SYNTHESIS ENGINE (BỘ PHÁT THANH & TIẾNG HIỆU RADIO)
+// WEB AUDIO & SPEECH SYNTHESIS ENGINE
 // =============================================================================
 class RadioAudioEngine {
   constructor() {
@@ -76,16 +78,13 @@ class RadioAudioEngine {
     }
   }
 
-  /**
-   * Phát tiếng nhạc hiệu (Jingle Chime) đặc trưng của đài phát thanh Radio VN bằng Web Audio API
-   */
   playRadioJingle() {
     try {
       this.initAudioContext();
       const ctx = this.audioCtx;
       const now = ctx.currentTime;
 
-      // Hợp âm Radio Chime 3 nốt: C5 -> E5 -> G5
+      // Hợp âm Chime Radio 3 nốt: C5 -> E5 -> G5
       const notes = [523.25, 659.25, 783.99];
       notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
@@ -109,14 +108,10 @@ class RadioAudioEngine {
     }
   }
 
-  /**
-   * Đọc kịch bản bằng Web Speech API
-   */
   speakText(text, onEndCallback) {
     if (!this.speechSynth) return;
     this.speechSynth.cancel();
 
-    // Loại bỏ các thẻ chỉ dẫn âm thanh [SFX: ...] khi đọc thoại
     const cleanedText = text
       .replace(/\[SFX:[^\]]+\]/g, ' ')
       .replace(/KÊNH:[^\n]+/g, ' ')
@@ -127,7 +122,6 @@ class RadioAudioEngine {
     this.utterance.rate = state.playbackSpeed;
     this.utterance.volume = state.isMuted ? 0 : state.volume;
 
-    // Tìm giọng đọc tiếng Việt nếu có
     const voices = this.speechSynth.getVoices();
     const vnVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VN'));
     if (vnVoice) {
@@ -136,7 +130,6 @@ class RadioAudioEngine {
       this.utterance.lang = 'vi-VN';
     }
 
-    // Điều chỉnh cao độ tùy theo MC
     if (state.activeChannel && state.activeChannel.voice_name.includes('Nữ')) {
       this.utterance.pitch = 1.15;
     } else {
@@ -172,7 +165,7 @@ class RadioAudioEngine {
 const audioEngine = new RadioAudioEngine();
 
 // =============================================================================
-// CANVAS AUDIO VISUALIZER (SÓNG ÂM THANH TRỰC TIẾP)
+// CANVAS AUDIO VISUALIZER (SÓNG ÂM THANH TRỰC TIẾP TRÊN MÀN HÌNH PLAYER)
 // =============================================================================
 let visualizerAnimationId = null;
 
@@ -187,30 +180,27 @@ function initCanvasVisualizer() {
   function renderWave() {
     ctx.clearRect(0, 0, width, height);
 
-    const barCount = 22;
-    const barWidth = 3;
+    const barCount = 28;
+    const barWidth = 4;
     const gap = (width - barCount * barWidth) / (barCount - 1);
 
     for (let i = 0; i < barCount; i++) {
       let barHeight;
       if (state.isPlaying) {
-        // Tạo nhịp sóng âm thanh động học khi phát thanh
-        const wave1 = Math.sin(phase + i * 0.35);
-        const wave2 = Math.cos(phase * 1.5 + i * 0.2);
+        const wave1 = Math.sin(phase + i * 0.3);
+        const wave2 = Math.cos(phase * 1.6 + i * 0.25);
         const intensity = Math.abs(wave1 * wave2);
-        barHeight = Math.max(4, intensity * (height - 4));
+        barHeight = Math.max(5, intensity * (height - 6));
       } else {
-        // Khi dừng thì sóng phẳng nhẹ
-        barHeight = 4;
+        barHeight = 5;
       }
 
       const x = i * (barWidth + gap);
       const y = (height - barHeight) / 2;
 
-      // Gradient màu neon chuyển từ Cyan sang Indigo
       const grad = ctx.createLinearGradient(0, y, 0, y + barHeight);
       grad.addColorStop(0, '#38bdf8');
-      grad.addColorStop(1, '#6366f1');
+      grad.addColorStop(1, '#818cf8');
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -239,11 +229,11 @@ function showToast(message, type = 'info') {
   if (!container) return;
 
   const toast = document.createElement('div');
-  const borderColors = {
-    info: 'border-sky-500 bg-slate-900 text-sky-300',
-    success: 'border-emerald-500 bg-slate-900 text-emerald-300',
-    warning: 'border-amber-500 bg-slate-900 text-amber-300',
-    error: 'border-rose-500 bg-slate-900 text-rose-300'
+  const colors = {
+    info: 'border-sky-500 bg-slate-900/95 text-sky-300',
+    success: 'border-emerald-500 bg-slate-900/95 text-emerald-300',
+    warning: 'border-amber-500 bg-slate-900/95 text-amber-300',
+    error: 'border-rose-500 bg-slate-900/95 text-rose-300'
   };
 
   const icons = {
@@ -253,10 +243,10 @@ function showToast(message, type = 'info') {
     error: 'alert-circle'
   };
 
-  toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-xl text-xs font-semibold animate-slide-in pointer-events-auto transition-all duration-300 ${borderColors[type] || borderColors.info}`;
+  toast.className = `flex items-center gap-2 px-3.5 py-2.5 rounded-xl border shadow-2xl text-xs font-semibold backdrop-blur-md pointer-events-auto transition-all duration-300 ${colors[type] || colors.info}`;
   toast.innerHTML = `
     <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 flex-shrink-0"></i>
-    <span>${message}</span>
+    <span class="truncate">${message}</span>
   `;
 
   container.appendChild(toast);
@@ -264,9 +254,61 @@ function showToast(message, type = 'info') {
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-10px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+    toast.style.transform = 'translateY(-6px)';
+    setTimeout(() => toast.remove(), 250);
+  }, 3200);
+}
+
+// =============================================================================
+// REAL-TIME MOBILE CLOCK
+// =============================================================================
+function updateMobileClock() {
+  const clockEl = document.getElementById('mobileClock');
+  if (!clockEl) return;
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  clockEl.textContent = `${hours}:${minutes}`;
+
+  const greetingDateEl = document.getElementById('greetingDate');
+  if (greetingDateEl) {
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    greetingDateEl.textContent = `${day}/${month}/${year}`;
+  }
+}
+setInterval(updateMobileClock, 10000);
+
+// =============================================================================
+// TAB NAVIGATION CONTROLLER
+// =============================================================================
+function switchTab(targetScreenId) {
+  state.activeTab = targetScreenId;
+
+  // Ẩn tất cả các màn hình
+  const screens = ['screenHome', 'screenMyChannels', 'screenProfile'];
+  screens.forEach(s => {
+    const el = document.getElementById(s);
+    if (el) {
+      if (s === targetScreenId) el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+  });
+
+  // Cập nhật trạng thái màu sắc trên Bottom Navigation Bar
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    const target = btn.dataset.target;
+    if (target === targetScreenId) {
+      btn.className = 'nav-item active flex flex-col items-center gap-1 text-sky-400 transition';
+    } else {
+      btn.className = 'nav-item flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition';
+    }
+  });
+
+  // Cuộn về đỉnh của scroll area
+  const scrollArea = document.getElementById('mainScrollArea');
+  if (scrollArea) scrollArea.scrollTop = 0;
 }
 
 // =============================================================================
@@ -281,17 +323,18 @@ async function fetchChannels() {
     state.channels = data.channels || [];
     renderChannelsList();
 
-    // Cập nhật tổng số kênh
-    const countEl = document.getElementById('totalChannelsCount');
-    if (countEl) countEl.textContent = state.channels.length;
+    const countBadge = document.getElementById('myChannelsBadge');
+    if (countBadge) countBadge.textContent = `${state.channels.length} Kênh`;
 
-    // Nếu chưa chọn kênh phát, chọn kênh đầu tiên làm mặc định
+    const statChannels = document.getElementById('statChannelsCount');
+    if (statChannels) statChannels.textContent = state.channels.length;
+
     if (!state.activeChannel && state.channels.length > 0) {
       loadChannelForPlayback(state.channels[0], false);
     }
   } catch (err) {
     console.error('fetchChannels error:', err);
-    showToast('Lỗi kết nối tới máy chủ Backend Radio VN', 'error');
+    showToast('Lỗi kết nối tới máy chủ Radio VN', 'error');
   }
 }
 
@@ -330,12 +373,12 @@ async function loadChannelForPlayback(channel, autoPlay = true) {
     renderChannelsList();
   } catch (err) {
     console.error('loadChannelForPlayback error:', err);
-    showToast('Không tải được bản tin phát thanh của kênh này', 'error');
+    showToast('Không thể tải số phát thanh của kênh này', 'error');
   }
 }
 
 async function refreshChannelBroadcast(channelId) {
-  showToast('Đang cào tin tức mới & biên tập bản tin live...', 'info');
+  showToast('Đang cập nhật tin mới & biên tập radio...', 'info');
   try {
     const res = await fetch(`${API_BASE_URL}/api/channels/${channelId}/generate-broadcast`, {
       method: 'POST'
@@ -360,7 +403,7 @@ async function refreshChannelBroadcast(channelId) {
 }
 
 async function deleteChannel(channelId) {
-  if (!confirm('Bạn có chắc chắn muốn xóa kênh phát thanh này không?')) return;
+  if (!confirm('Bạn có chắc chắn muốn xóa kênh này không?')) return;
 
   try {
     const userId = state.user ? state.user.id : 1;
@@ -385,7 +428,7 @@ async function deleteChannel(channelId) {
 }
 
 // =============================================================================
-// AUDIO PLAYER CONTROLS & TIMERS
+// AUDIO CONTROLS & TIMERS
 // =============================================================================
 function startPlayback() {
   if (!state.activeChannel || !state.activeBroadcast) {
@@ -396,10 +439,8 @@ function startPlayback() {
   state.isPlaying = true;
   audioEngine.playRadioJingle();
 
-  // Đọc kịch bản phát thanh bằng AI Voice
   setTimeout(() => {
     audioEngine.speakText(state.activeBroadcast.script_text, () => {
-      // Khi đọc xong: Nếu là Live 24/7 thì lặp lại hoặc làm mới, nếu podcast thì dừng
       if (state.activeChannel.broadcast_mode === 'live') {
         state.currentTime = 0;
         startPlayback();
@@ -407,9 +448,8 @@ function startPlayback() {
         pausePlayback();
       }
     });
-  }, 600);
+  }, 500);
 
-  // Bộ đếm thời gian phát thanh
   if (audioEngine.timerInterval) clearInterval(audioEngine.timerInterval);
   audioEngine.timerInterval = setInterval(() => {
     if (state.isPlaying) {
@@ -468,83 +508,105 @@ function formatTime(seconds) {
 }
 
 function updatePlayerTimeline() {
-  const currEl = document.getElementById('playerCurrentTime');
-  const durEl = document.getElementById('playerDuration');
-  const progressEl = document.getElementById('playerProgressBar');
+  const fullCurr = document.getElementById('fullPlayerCurrentTime');
+  const fullDur = document.getElementById('fullPlayerDuration');
+  const fullProgress = document.getElementById('fullPlayerProgressBar');
+  const miniProgressLine = document.getElementById('miniProgressLine');
 
-  if (currEl) currEl.textContent = formatTime(state.currentTime);
-  if (durEl) durEl.textContent = formatTime(state.duration);
-  if (progressEl) {
-    const percent = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0;
-    progressEl.value = percent;
-  }
+  const percent = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0;
+
+  if (fullCurr) fullCurr.textContent = formatTime(state.currentTime);
+  if (fullDur) fullDur.textContent = formatTime(state.duration);
+  if (fullProgress) fullProgress.value = percent;
+  if (miniProgressLine) miniProgressLine.style.width = `${percent}%`;
 }
 
 function updatePlayerUI() {
-  const titleEl = document.getElementById('playerChannelTitle');
-  const headlineEl = document.getElementById('playerHeadline');
-  const badgeEl = document.getElementById('playerBadge');
-  const voiceBadgeEl = document.getElementById('playerVoiceBadge');
-  const playIcon = document.getElementById('playIcon');
-  const liveDot = document.getElementById('playerLiveDot');
+  // Mini Player elements
+  const miniTitle = document.getElementById('miniChannelTitle');
+  const miniHeadline = document.getElementById('miniHeadline');
+  const miniPlayIcon = document.getElementById('miniPlayIcon');
+  const islandTrackName = document.getElementById('islandTrackName');
+
+  // Fullscreen Player elements
+  const fullTitle = document.getElementById('fullPlayerTitle');
+  const fullHeadline = document.getElementById('fullPlayerHeadline');
+  const fullTopic = document.getElementById('fullPlayerTopic');
+  const fullTone = document.getElementById('fullPlayerTone');
+  const fullVoice = document.getElementById('fullPlayerVoice');
+  const fullPlayIcon = document.getElementById('fullPlayIcon');
+
+  const topicNames = {
+    'cong-nghe': 'Công Nghệ',
+    'giao-thong': 'Giao Thông',
+    'kinh-doanh': 'Tài Chính',
+    'the-thao': 'Thể Thao',
+    'tong-hop': 'Tổng Hợp'
+  };
 
   if (!state.activeChannel) {
-    if (titleEl) titleEl.textContent = 'Chưa chọn kênh phát';
-    if (headlineEl) headlineEl.textContent = 'Hãy chọn 1 kênh bên trên để bắt đầu nghe';
-    if (badgeEl) badgeEl.textContent = 'OFFLINE';
+    if (miniTitle) miniTitle.textContent = 'Chưa chọn kênh';
+    if (miniHeadline) miniHeadline.textContent = 'Bấm chọn 1 kênh bên dưới để nghe';
+    if (islandTrackName) islandTrackName.textContent = 'Radio VN';
     return;
   }
 
-  if (titleEl) titleEl.textContent = state.activeChannel.name;
+  const channelTitle = state.activeChannel.name;
+  let headlineSnippet = state.activeChannel.prompt;
+  if (state.activeBroadcast && state.activeBroadcast.headlines && state.activeBroadcast.headlines.length > 0) {
+    headlineSnippet = state.activeBroadcast.headlines[0].title;
+  }
 
-  if (headlineEl) {
-    if (state.activeBroadcast && state.activeBroadcast.headlines && state.activeBroadcast.headlines.length > 0) {
-      headlineEl.textContent = `Tiêu điểm: ${state.activeBroadcast.headlines[0].title}`;
-    } else {
-      headlineEl.textContent = state.activeChannel.prompt;
+  // Update Mini Player
+  if (miniTitle) miniTitle.textContent = channelTitle;
+  if (miniHeadline) miniHeadline.textContent = headlineSnippet;
+  if (islandTrackName) islandTrackName.textContent = channelTitle.split(' ')[0] || 'Radio VN';
+
+  // Update Full Player
+  if (fullTitle) fullTitle.textContent = channelTitle;
+  if (fullHeadline) fullHeadline.textContent = headlineSnippet;
+  if (fullTopic) fullTopic.textContent = topicNames[state.activeChannel.topic] || 'Tin Tức';
+  if (fullTone) fullTone.textContent = state.activeChannel.tone;
+  if (fullVoice) fullVoice.innerHTML = `<i data-lucide="mic" class="w-3.5 h-3.5"></i><span>${state.activeChannel.voice_name}</span>`;
+
+  // Toggle play icons
+  [miniPlayIcon, fullPlayIcon].forEach(icon => {
+    if (icon) {
+      if (state.isPlaying) {
+        icon.setAttribute('data-lucide', 'pause');
+        icon.classList.remove('ml-0.5', 'ml-1');
+      } else {
+        icon.setAttribute('data-lucide', 'play');
+        icon.classList.add('ml-0.5');
+      }
     }
-  }
+  });
 
-  if (badgeEl) {
-    if (state.activeChannel.broadcast_mode === 'live') {
-      badgeEl.textContent = '🔴 LIVE 24/7';
-      badgeEl.className = 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30';
-      if (liveDot) liveDot.classList.remove('hidden');
-    } else {
-      badgeEl.textContent = '🎙️ PODCAST';
-      badgeEl.className = 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30';
-      if (liveDot) liveDot.classList.add('hidden');
-    }
-  }
-
-  if (voiceBadgeEl) {
-    voiceBadgeEl.innerHTML = `<i data-lucide="mic" class="w-3 h-3"></i><span>${state.activeChannel.voice_name}</span>`;
-  }
-
-  // Play/Pause icon
-  if (playIcon) {
-    if (state.isPlaying) {
-      playIcon.setAttribute('data-lucide', 'pause');
-      playIcon.classList.remove('ml-0.5');
-    } else {
-      playIcon.setAttribute('data-lucide', 'play');
-      playIcon.classList.add('ml-0.5');
-    }
-    if (window.lucide) window.lucide.createIcons();
-  }
-
+  if (window.lucide) window.lucide.createIcons();
   updatePlayerTimeline();
 }
 
+function openFullscreenPlayer() {
+  const fullPlayer = document.getElementById('fullScreenPlayer');
+  if (fullPlayer) {
+    fullPlayer.classList.add('player-open');
+  }
+}
+
+function closeFullscreenPlayer() {
+  const fullPlayer = document.getElementById('fullScreenPlayer');
+  if (fullPlayer) {
+    fullPlayer.classList.remove('player-open');
+  }
+}
+
 // =============================================================================
-// RENDERING CHANNELS GRID
+// RENDERING MOBILE CHANNELS LIST
 // =============================================================================
 function renderChannelsList() {
-  const grid = document.getElementById('channelsGrid');
-  const emptyState = document.getElementById('channelsEmptyState');
-  if (!grid) return;
+  const homeContainer = document.getElementById('homeChannelsList');
+  const myChannelsContainer = document.getElementById('myChannelsContainer');
 
-  // Lọc kênh theo tab và ô tìm kiếm
   let filtered = state.channels;
   if (state.filter === 'live') {
     filtered = filtered.filter(c => c.broadcast_mode === 'live');
@@ -561,114 +623,99 @@ function renderChannelsList() {
     );
   }
 
-  if (filtered.length === 0) {
-    grid.innerHTML = '';
-    if (emptyState) emptyState.classList.remove('hidden');
-    return;
-  }
-
-  if (emptyState) emptyState.classList.add('hidden');
-
-  const topicColors = {
-    'cong-nghe': { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/30', label: 'Công Nghệ' },
-    'giao-thong': { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Giao Thông' },
-    'kinh-doanh': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Tài Chính' },
-    'the-thao': { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30', label: 'Thể Thao' },
-    'tong-hop': { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30', label: 'Tổng Hợp' }
+  const topicBadges = {
+    'cong-nghe': { bg: 'bg-sky-500/10 text-sky-400 border-sky-500/30', label: 'Công Nghệ' },
+    'giao-thong': { bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30', label: 'Giao Thông' },
+    'kinh-doanh': { bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', label: 'Tài Chính' },
+    'the-thao': { bg: 'bg-rose-500/10 text-rose-400 border-rose-500/30', label: 'Thể Thao' },
+    'tong-hop': { bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30', label: 'Tổng Hợp' }
   };
 
-  grid.innerHTML = filtered.map(ch => {
+  const buildChannelCardHTML = (ch) => {
     const isCurrentActive = state.activeChannel && state.activeChannel.id === ch.id;
     const isThisPlaying = isCurrentActive && state.isPlaying;
-    const tColor = topicColors[ch.topic] || topicColors['cong-nghe'];
-
-    const sourcesBadges = (ch.sources || []).slice(0, 3).map(s => {
-      const sName = typeof s === 'string' ? s : (s.name || 'Báo chính thống');
-      return `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 border border-slate-700">${sName}</span>`;
-    }).join('');
+    const tBadge = topicBadges[ch.topic] || topicBadges['cong-nghe'];
 
     return `
-      <div class="glass-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group ${isCurrentActive ? 'border-sky-500/60 shadow-lg shadow-sky-500/10' : ''}">
+      <div class="glass-card rounded-2xl p-3.5 space-y-2.5 relative overflow-hidden transition active:scale-[0.99] ${isCurrentActive ? 'border-sky-500/60 shadow-lg shadow-sky-500/15' : ''}">
         
-        <!-- Equalizer indicator on card when playing -->
-        ${isThisPlaying ? `
-          <div class="absolute top-4 right-4 flex items-end gap-1 h-5 px-2 py-1 rounded-full bg-sky-500/20 border border-sky-500/30">
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-          </div>
-        ` : ''}
-
-        <div>
-          <!-- Header tags -->
-          <div class="flex items-center gap-2 mb-3 pr-12">
-            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${tColor.bg} ${tColor.text} ${tColor.border}">
-              ${tColor.label}
+        <!-- Top bar: Tags + Animated Equalizer -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold border ${tBadge.bg}">
+              ${tBadge.label}
             </span>
-            <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
               ${ch.tone}
             </span>
             ${ch.broadcast_mode === 'live' ? `
-              <span class="text-[10px] font-bold text-red-400 flex items-center gap-1">
+              <span class="text-[9px] font-bold text-red-400 flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
                 24/7
               </span>
             ` : `
-              <span class="text-[10px] font-bold text-purple-400">Podcast</span>
+              <span class="text-[9px] font-bold text-purple-400">Podcast</span>
             `}
           </div>
 
-          <!-- Channel Title -->
-          <h3 class="text-base font-bold text-white mb-1.5 group-hover:text-sky-300 transition line-clamp-1">
-            ${ch.name}
-          </h3>
-
-          <!-- Prompt description -->
-          <p class="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed">
-            ${ch.prompt}
-          </p>
-
-          <!-- Sources tags -->
-          <div class="flex flex-wrap items-center gap-1.5 mb-4">
-            <span class="text-[10px] text-slate-500 font-medium">Nguồn:</span>
-            ${sourcesBadges}
-          </div>
+          ${isThisPlaying ? `
+            <div class="flex items-end gap-0.5 h-4 px-1.5 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/30">
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+            </div>
+          ` : ''}
         </div>
 
-        <!-- Footer Actions -->
-        <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs text-slate-400">
-            <i data-lucide="mic" class="w-3.5 h-3.5 text-sky-400"></i>
-            <span class="truncate max-w-[110px] text-[11px]">${ch.voice_name.split('(')[0]}</span>
+        <!-- Channel Title & Prompt -->
+        <div>
+          <h4 class="text-xs font-bold text-white line-clamp-1 group-hover:text-sky-300">
+            ${ch.name}
+          </h4>
+          <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
+            ${ch.prompt}
+          </p>
+        </div>
+
+        <!-- Mobile Action Buttons Row -->
+        <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+          <div class="text-[10px] text-slate-400 flex items-center gap-1">
+            <i data-lucide="mic" class="w-3 h-3 text-sky-400"></i>
+            <span class="truncate max-w-[90px]">${ch.voice_name.split('(')[0]}</span>
           </div>
 
-          <div class="flex items-center gap-1.5">
-            <button class="btn-refresh-channel p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition" title="Làm mới bản tin Live" data-id="${ch.id}">
+          <div class="flex items-center gap-1">
+            <button class="btn-refresh-channel p-1.5 text-slate-400 hover:text-white rounded-lg active:bg-slate-800" title="Làm mới tin" data-id="${ch.id}">
               <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
             </button>
-            <button class="btn-view-script p-1.5 text-slate-400 hover:text-sky-400 rounded-lg hover:bg-slate-800 transition" title="Xem kịch bản" data-id="${ch.id}">
+            <button class="btn-view-script p-1.5 text-slate-400 hover:text-sky-400 rounded-lg active:bg-slate-800" title="Xem kịch bản" data-id="${ch.id}">
               <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
             </button>
-            <button class="btn-delete-channel p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition" title="Xóa kênh" data-id="${ch.id}">
+            <button class="btn-delete-channel p-1.5 text-slate-500 hover:text-red-400 rounded-lg active:bg-slate-800" title="Xóa kênh" data-id="${ch.id}">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
-            <button class="btn-play-channel px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${isThisPlaying ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25' : 'bg-slate-800 hover:bg-sky-600 text-white'}" data-id="${ch.id}">
-              <i data-lucide="${isThisPlaying ? 'pause' : 'play'}" class="w-3.5 h-3.5"></i>
-              <span>${isThisPlaying ? 'Tạm Dừng' : 'Phát Kênh'}</span>
+            <button class="btn-play-channel px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 ${isThisPlaying ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20' : 'bg-slate-800 text-white'}" data-id="${ch.id}">
+              <i data-lucide="${isThisPlaying ? 'pause' : 'play'}" class="w-3 h-3"></i>
+              <span>${isThisPlaying ? 'Tạm Dừng' : 'Nghe Ngay'}</span>
             </button>
           </div>
         </div>
 
       </div>
     `;
-  }).join('');
+  };
+
+  const cardsHtml = filtered.map(buildChannelCardHTML).join('');
+
+  if (homeContainer) homeContainer.innerHTML = cardsHtml;
+  if (myChannelsContainer) myChannelsContainer.innerHTML = cardsHtml;
 
   if (window.lucide) window.lucide.createIcons();
 
-  // Gắn sự kiện cho các nút hành động trên thẻ
-  grid.querySelectorAll('.btn-play-channel').forEach(btn => {
-    btn.addEventListener('click', () => {
+  // Attach card event listeners
+  document.querySelectorAll('.btn-play-channel').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       const ch = state.channels.find(c => c.id === id);
       if (ch) {
@@ -681,22 +728,25 @@ function renderChannelsList() {
     });
   });
 
-  grid.querySelectorAll('.btn-refresh-channel').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.querySelectorAll('.btn-refresh-channel').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       refreshChannelBroadcast(id);
     });
   });
 
-  grid.querySelectorAll('.btn-view-script').forEach(btn => {
-    btn.addEventListener('click', async () => {
+  document.querySelectorAll('.btn-view-script').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const id = parseInt(btn.dataset.id);
-      openScriptModalForChannel(id);
+      openScriptSheetForChannel(id);
     });
   });
 
-  grid.querySelectorAll('.btn-delete-channel').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.querySelectorAll('.btn-delete-channel').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       deleteChannel(id);
     });
@@ -704,44 +754,42 @@ function renderChannelsList() {
 }
 
 // =============================================================================
-// MODAL XEM KỊCH BẢN PHÁT THANH
+// LIVE SCRIPT BOTTOM SHEET
 // =============================================================================
-async function openScriptModalForChannel(channelId) {
+async function openScriptSheetForChannel(channelId) {
   try {
     const res = await fetch(`${API_BASE_URL}/api/channels/${channelId}`);
     if (!res.ok) throw new Error('Không thể tải kịch bản');
     const data = await res.json();
 
-    const titleEl = document.getElementById('scriptModalTitle');
-    const subEl = document.getElementById('scriptModalSubtitle');
-    const contentEl = document.getElementById('scriptModalContent');
-    const modal = document.getElementById('scriptModal');
+    const titleEl = document.getElementById('scriptSheetTitle');
+    const subEl = document.getElementById('scriptSheetSubtitle');
+    const contentEl = document.getElementById('scriptSheetContent');
+    const sheet = document.getElementById('mobileScriptSheet');
 
     if (titleEl) titleEl.textContent = `Kịch Bản: ${data.channel.name}`;
-    if (subEl) subEl.textContent = `Giọng đọc: ${data.channel.voice_name} • Phong cách: ${data.channel.tone}`;
+    if (subEl) subEl.textContent = `MC: ${data.channel.voice_name} • Phong cách: ${data.channel.tone}`;
 
     const scriptText = data.latest_broadcast ? data.latest_broadcast.script_text : 'Chưa có kịch bản cho số phát sóng này.';
-    
-    // Tô sáng các thẻ SFX để thính giả thấy trực quan các điểm nhạc hiệu & hiệu ứng
     const formatted = scriptText.replace(/(\[SFX:[^\]]+\])/g, '<span class="sfx-badge px-2 py-0.5 rounded font-bold inline-block my-1">$1</span>');
     if (contentEl) contentEl.innerHTML = formatted;
 
-    modal.classList.remove('hidden');
-    setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    sheet.classList.remove('hidden');
+    setTimeout(() => sheet.classList.remove('opacity-0'), 10);
   } catch (e) {
     showToast('Lỗi khi mở kịch bản phát thanh', 'error');
   }
 }
 
-function closeScriptModal() {
-  const modal = document.getElementById('scriptModal');
-  if (!modal) return;
-  modal.classList.add('opacity-0');
-  setTimeout(() => modal.classList.add('hidden'), 250);
+function closeScriptSheet() {
+  const sheet = document.getElementById('mobileScriptSheet');
+  if (!sheet) return;
+  sheet.classList.add('opacity-0');
+  setTimeout(() => sheet.classList.add('hidden'), 200);
 }
 
 // =============================================================================
-// WIZARD 4 BƯỚC: KHỞI TẠO KÊNH BẰNG PROMPT
+// MOBILE 4-STEP WIZARD (TẠO KÊNH BẰNG PROMPT)
 // =============================================================================
 function openWizardModal(preset = null) {
   state.wizard.currentStep = 1;
@@ -750,13 +798,12 @@ function openWizardModal(preset = null) {
     if (preset.prompt) state.wizard.prompt = preset.prompt;
     if (preset.topic) state.wizard.topic = preset.topic;
     if (preset.tone) state.wizard.tone = preset.tone;
-    state.wizard.channelName = preset.prompt.slice(0, 35) + '...';
+    state.wizard.channelName = preset.prompt.slice(0, 32) + '...';
   } else {
     state.wizard.prompt = '';
     state.wizard.channelName = '';
   }
 
-  // Cập nhật giá trị vào form Step 1
   const nameInput = document.getElementById('wizChannelName');
   const promptInput = document.getElementById('wizPrompt');
   const topicSelect = document.getElementById('wizTopic');
@@ -767,7 +814,6 @@ function openWizardModal(preset = null) {
   if (topicSelect) topicSelect.value = state.wizard.topic;
   if (toneSelect) toneSelect.value = state.wizard.tone;
 
-  // Xóa kết quả kiểm tra Whitelist cũ
   const wlBox = document.getElementById('whitelistResultBox');
   if (wlBox) wlBox.classList.add('hidden');
 
@@ -775,20 +821,16 @@ function openWizardModal(preset = null) {
 
   const modal = document.getElementById('wizardModal');
   modal.classList.remove('hidden');
-  setTimeout(() => modal.classList.remove('opacity-0'), 10);
 }
 
 function closeWizardModal() {
   const modal = document.getElementById('wizardModal');
-  if (!modal) return;
-  modal.classList.add('opacity-0');
-  setTimeout(() => modal.classList.add('hidden'), 250);
+  if (modal) modal.classList.add('hidden');
 }
 
 function updateWizardStepView() {
   const step = state.wizard.currentStep;
 
-  // Ẩn tất cả các bước
   [1, 2, 3, 4].forEach(s => {
     const el = document.getElementById(`wizardStep${s}`);
     if (el) {
@@ -797,28 +839,22 @@ function updateWizardStepView() {
     }
   });
 
-  // Cập nhật thanh Step Indicator
+  // Step Indicator
   document.querySelectorAll('.step-nav-item').forEach(item => {
     const s = parseInt(item.dataset.step);
     const badge = item.querySelector('.step-badge');
-    const label = item.querySelector('span:last-child');
-
     if (s < step) {
-      badge.className = 'step-badge w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold';
+      badge.className = 'step-badge w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold';
       badge.innerHTML = '✓';
-      if (label) label.className = 'text-emerald-400 font-semibold hidden sm:inline';
     } else if (s === step) {
-      badge.className = 'step-badge w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center text-xs font-bold shadow-md shadow-sky-500/40';
+      badge.className = 'step-badge w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center text-[10px] font-bold shadow-md shadow-sky-500/40';
       badge.textContent = s;
-      if (label) label.className = 'text-sky-400 font-bold hidden sm:inline';
     } else {
-      badge.className = 'step-badge w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs';
+      badge.className = 'step-badge w-5 h-5 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-[10px]';
       badge.textContent = s;
-      if (label) label.className = 'text-slate-500 hidden sm:inline';
     }
   });
 
-  // Cập nhật đường nối giữa các bước
   for (let i = 1; i <= 3; i++) {
     const line = document.getElementById(`line-${i}`);
     if (line) {
@@ -827,7 +863,6 @@ function updateWizardStepView() {
     }
   }
 
-  // Cập nhật nút Prev/Next/Finish
   const btnPrev = document.getElementById('btnWizPrev');
   const btnNext = document.getElementById('btnWizNext');
   const btnFinish = document.getElementById('btnWizFinish');
@@ -842,7 +877,6 @@ function updateWizardStepView() {
     if (btnFinish) btnFinish.classList.add('hidden');
   }
 
-  // Hành động kích hoạt theo từng bước
   if (step === 2) {
     loadSuggestedSourcesForStep2();
   } else if (step === 3) {
@@ -858,7 +892,7 @@ async function loadSuggestedSourcesForStep2() {
   const container = document.getElementById('wizSourcesList');
   if (!container) return;
 
-  container.innerHTML = '<div class="text-xs text-slate-400 col-span-2 py-4 text-center">Đang lọc danh sách báo chính thống...</div>';
+  container.innerHTML = '<div class="text-[11px] text-slate-400 py-3 text-center">Đang lọc danh sách báo chính thống...</div>';
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/sources/suggest?topic=${state.wizard.topic}`);
@@ -866,30 +900,28 @@ async function loadSuggestedSourcesForStep2() {
     const data = await res.json();
     const sources = data.sources || [];
 
-    // Mặc định chọn các nguồn active
     state.wizard.sources = sources.filter(s => s.active).map(s => s.name);
 
     container.innerHTML = sources.map(s => {
       const isChecked = state.wizard.sources.includes(s.name);
       return `
-        <label class="flex items-center justify-between p-3 rounded-xl bg-slate-800/80 border border-slate-700/80 hover:border-sky-500/40 cursor-pointer transition">
-          <div class="flex items-center gap-2.5">
+        <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 cursor-pointer active:scale-99 transition">
+          <div class="flex items-center gap-2">
             <input type="checkbox" class="source-checkbox w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-600 focus:ring-0"
                    value="${s.name}" ${isChecked ? 'checked' : ''} />
             <div>
               <div class="text-xs font-bold text-white">${s.name}</div>
-              <div class="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <div class="text-[9px] text-slate-400 flex items-center gap-1">
                 <span class="text-emerald-400 font-semibold">✓ ${s.whitelist_info ? s.whitelist_info.badge_text : 'Chính thống'}</span>
                 <span>• ${s.domain}</span>
               </div>
             </div>
           </div>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">Đã duyệt</span>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">Đã duyệt</span>
         </label>
       `;
     }).join('');
 
-    // Bắt sự kiện check/uncheck
     container.querySelectorAll('.source-checkbox').forEach(cb => {
       cb.addEventListener('change', () => {
         const val = cb.value;
@@ -903,7 +935,7 @@ async function loadSuggestedSourcesForStep2() {
 
   } catch (err) {
     console.error('loadSuggestedSourcesForStep2 error:', err);
-    container.innerHTML = '<div class="text-xs text-rose-400 col-span-2 py-2">Không thể tải danh sách nguồn. Bạn có thể tự thêm URL bên dưới.</div>';
+    container.innerHTML = '<div class="text-[11px] text-rose-400 py-2">Không thể tải nguồn tin lúc này.</div>';
   }
 }
 
@@ -914,13 +946,12 @@ async function checkCustomUrlWhitelist() {
 
   const url = input.value.trim();
   if (!url) {
-    showToast('Vui lòng nhập đường dẫn URL hoặc tên miền báo chí', 'warning');
+    showToast('Vui lòng nhập URL hoặc tên miền', 'warning');
     return;
   }
 
   box.classList.remove('hidden');
-  box.innerHTML = '<div class="text-xs text-slate-400 flex items-center gap-2"><i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Đang đối soát với Whitelist báo chí Việt Nam...</div>';
-  if (window.lucide) window.lucide.createIcons();
+  box.innerHTML = '<div class="text-[11px] text-slate-400">Đang đối soát Whitelist báo chí...</div>';
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/sources/check-domain`, {
@@ -931,54 +962,41 @@ async function checkCustomUrlWhitelist() {
     const data = await res.json();
 
     if (data.is_whitelisted) {
-      box.className = 'p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-xs space-y-2';
+      box.className = 'p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-xs space-y-1.5';
       box.innerHTML = `
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2 font-bold text-emerald-400">
-            <i data-lucide="shield-check" class="w-4 h-4"></i>
-            <span>${data.badge_text} (${data.domain})</span>
-          </div>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">${data.tier || 'Uy tín'}</span>
+          <span class="font-bold text-emerald-400">✓ ${data.badge_text}</span>
+          <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">${data.domain}</span>
         </div>
-        <p class="text-[11px] text-slate-300 leading-relaxed">${data.message}</p>
-        <button type="button" id="btnAddVerifiedSource" class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-          <span>Thêm ${data.source_name} vào danh sách nguồn kênh</span>
+        <p class="text-[10px] text-slate-300 leading-tight">${data.message}</p>
+        <button type="button" id="btnAddVerifiedSource" class="mt-1 px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1">
+          <i data-lucide="plus" class="w-3 h-3"></i>
+          <span>Thêm ${data.source_name} vào kênh</span>
         </button>
       `;
 
       setTimeout(() => {
-        const addBtn = document.getElementById('btnAddVerifiedSource');
-        if (addBtn) {
-          addBtn.addEventListener('click', () => {
-            if (!state.wizard.sources.includes(data.source_name)) {
-              state.wizard.sources.push(data.source_name);
-              showToast(`Đã thêm nguồn ${data.source_name} vào kênh!`, 'success');
-              loadSuggestedSourcesForStep2();
-            } else {
-              showToast('Nguồn này đã có trong danh sách', 'info');
-            }
-          });
-        }
+        document.getElementById('btnAddVerifiedSource')?.addEventListener('click', () => {
+          if (!state.wizard.sources.includes(data.source_name)) {
+            state.wizard.sources.push(data.source_name);
+            showToast(`Đã thêm ${data.source_name} vào kênh!`, 'success');
+            loadSuggestedSourcesForStep2();
+          }
+        });
       }, 50);
 
     } else {
-      box.className = 'p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs space-y-1.5';
+      box.className = 'p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs space-y-1';
       box.innerHTML = `
-        <div class="flex items-center gap-2 font-bold text-amber-400">
-          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-          <span>${data.badge_text} (${data.domain || 'Ngoại lai'})</span>
-        </div>
-        <p class="text-[11px] text-slate-300 leading-relaxed">${data.message}</p>
+        <div class="font-bold text-amber-400">⚠️ ${data.badge_text} (${data.domain})</div>
+        <p class="text-[10px] text-slate-300 leading-tight">${data.message}</p>
       `;
     }
 
     if (window.lucide) window.lucide.createIcons();
-
   } catch (err) {
-    console.error('checkCustomUrlWhitelist error:', err);
-    box.className = 'p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-xs';
-    box.textContent = 'Lỗi kết nối kiểm tra tên miền. Vui lòng thử lại.';
+    box.className = 'p-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-[11px]';
+    box.textContent = 'Lỗi kết nối kiểm tra tên miền.';
   }
 }
 
@@ -996,29 +1014,27 @@ function renderVoiceSelection() {
   container.innerHTML = voices.map(v => {
     const isSelected = (state.wizard.voiceCode === v.code);
     return `
-      <div class="voice-card border ${isSelected ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/80'} rounded-xl p-3.5 cursor-pointer hover:border-sky-500/50 transition relative"
+      <div class="voice-card border ${isSelected ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700 bg-slate-900/80'} rounded-xl p-3 cursor-pointer active:scale-99 transition relative"
            data-code="${v.code}" data-name="${v.name} (${v.gender} - ${v.region})">
         
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-1.5">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg ${v.gender === 'Nam' ? 'bg-sky-500/20 text-sky-400' : 'bg-pink-500/20 text-pink-400'} flex items-center justify-center font-bold text-xs">
-              <i data-lucide="mic" class="w-4 h-4"></i>
+            <div class="w-7 h-7 rounded-lg ${v.gender === 'Nam' ? 'bg-sky-500/20 text-sky-400' : 'bg-pink-500/20 text-pink-400'} flex items-center justify-center font-bold text-xs">
+              <i data-lucide="mic" class="w-3.5 h-3.5"></i>
             </div>
             <div>
               <h4 class="text-xs font-bold text-white">${v.name}</h4>
-              <p class="text-[10px] text-slate-400">${v.region}</p>
+              <p class="text-[9px] text-slate-400">${v.region}</p>
             </div>
           </div>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700">
             ${v.tone_specialty}
           </span>
         </div>
 
-        <p class="text-[11px] text-slate-400 mb-3 italic">"${v.description || v.sample_text}"</p>
-
-        <button type="button" class="btn-preview-voice w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition"
-                data-text="${v.sample_text}" data-gender="${v.gender}">
-          <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+        <button type="button" class="btn-preview-voice w-full py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 text-[10px] font-bold flex items-center justify-center gap-1 transition"
+                data-text="${v.sample_text}">
+          <i data-lucide="volume-2" class="w-3 h-3"></i>
           <span>Nghe thử mẫu giọng</span>
         </button>
       </div>
@@ -1040,11 +1056,8 @@ function renderVoiceSelection() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const text = btn.dataset.text;
-      const gender = btn.dataset.gender;
       audioEngine.playRadioJingle();
-      setTimeout(() => {
-        audioEngine.speakText(text);
-      }, 500);
+      setTimeout(() => audioEngine.speakText(text), 450);
     });
   });
 }
@@ -1053,10 +1066,9 @@ async function triggerStep4EditorialPipeline() {
   const progressText = document.getElementById('pipelineProgressText');
   const previewBox = document.getElementById('wizScriptPreviewBox');
   const durEl = document.getElementById('wizEstimatedDuration');
-  const countEl = document.getElementById('wizHeadlinesCount');
 
   if (progressText) progressText.textContent = 'Đang chạy Pipeline AI Editorial...';
-  if (previewBox) previewBox.innerHTML = '<span class="text-sky-400 animate-pulse">Đang kết nối RSS báo chí chính thống & tạo kịch bản phát thanh MC...</span>';
+  if (previewBox) previewBox.innerHTML = '<span class="text-sky-400 animate-pulse">Đang kết nối RSS báo chí & sinh kịch bản MC...</span>';
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/ai/editorial-preview`, {
@@ -1079,17 +1091,15 @@ async function triggerStep4EditorialPipeline() {
 
     if (progressText) progressText.textContent = '✓ Pipeline hoàn tất 100%';
     if (durEl) durEl.textContent = data.preview.duration_formatted;
-    if (countEl) countEl.textContent = data.preview.headlines_count;
 
-    // Hiển thị kịch bản với SFX badge
     const script = data.preview.full_script;
-    const formatted = script.replace(/(\[SFX:[^\]]+\])/g, '<span class="sfx-badge px-2 py-0.5 rounded font-bold inline-block my-1">$1</span>');
+    const formatted = script.replace(/(\[SFX:[^\]]+\])/g, '<span class="sfx-badge px-1.5 py-0.5 rounded font-bold inline-block my-1">$1</span>');
     if (previewBox) previewBox.innerHTML = formatted;
 
   } catch (err) {
     console.error('triggerStep4EditorialPipeline error:', err);
-    if (progressText) progressText.textContent = 'Lỗi chạy pipeline';
-    if (previewBox) previewBox.textContent = 'Không thể biên tập kịch bản lúc này. Vui lòng thử lại.';
+    if (progressText) progressText.textContent = 'Lỗi pipeline';
+    if (previewBox) previewBox.textContent = 'Không thể biên tập kịch bản lúc này.';
   }
 }
 
@@ -1097,13 +1107,12 @@ async function submitCreateChannel() {
   const btn = document.getElementById('btnWizFinish');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>Đang tạo kênh & lên sóng...</span>';
-    if (window.lucide) window.lucide.createIcons();
+    btn.innerHTML = '<span>Đang lên sóng...</span>';
   }
 
   try {
     const payload = {
-      user_id: state.user.id,
+      user_id: state.user ? state.user.id : 1,
       name: state.wizard.channelName || 'Kênh Tin Tức Cá Nhân Hóa',
       prompt: state.wizard.prompt || 'Tin tức tự động theo sở thích',
       topic: state.wizard.topic,
@@ -1124,12 +1133,12 @@ async function submitCreateChannel() {
     if (!res.ok) throw new Error('Không thể tạo kênh');
     const data = await res.json();
 
-    showToast(`Đã tạo kênh '${data.channel.name}' thành công! Bắt đầu phát sóng.`, 'success');
+    showToast(`Đã tạo kênh '${data.channel.name}' thành công!`, 'success');
     closeWizardModal();
 
-    // Làm mới danh sách kênh và phát ngay kênh mới tạo
     await fetchChannels();
     loadChannelForPlayback(data.channel, true);
+    openFullscreenPlayer();
 
   } catch (err) {
     console.error('submitCreateChannel error:', err);
@@ -1137,30 +1146,30 @@ async function submitCreateChannel() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i><span>Lưu & Bắt Đầu Nghe Live</span>';
+      btn.innerHTML = '<i data-lucide="radio" class="w-4 h-4"></i><span>Lên Sóng Live</span>';
       if (window.lucide) window.lucide.createIcons();
     }
   }
 }
 
 // =============================================================================
-// AUTHENTICATION (ĐĂNG NHẬP / ĐĂNG KÝ)
+// USER PROFILE & AUTH (BOTTOM SHEET)
 // =============================================================================
-let authMode = 'login'; // 'login' | 'register'
+let authMode = 'login';
 
-function openAuthModal() {
-  const modal = document.getElementById('authModal');
-  if (!modal) return;
-  setAuthMode('login');
-  modal.classList.remove('hidden');
-  setTimeout(() => modal.classList.remove('opacity-0'), 10);
+function openAuthSheet(mode = 'login') {
+  setAuthMode(mode);
+  const sheet = document.getElementById('mobileAuthSheet');
+  if (!sheet) return;
+  sheet.classList.remove('hidden');
+  setTimeout(() => sheet.classList.remove('opacity-0'), 10);
 }
 
-function closeAuthModal() {
-  const modal = document.getElementById('authModal');
-  if (!modal) return;
-  modal.classList.add('opacity-0');
-  setTimeout(() => modal.classList.add('hidden'), 250);
+function closeAuthSheet() {
+  const sheet = document.getElementById('mobileAuthSheet');
+  if (!sheet) return;
+  sheet.classList.add('opacity-0');
+  setTimeout(() => sheet.classList.add('hidden'), 200);
 }
 
 function setAuthMode(mode) {
@@ -1175,14 +1184,14 @@ function setAuthMode(mode) {
   if (alertEl) alertEl.classList.add('hidden');
 
   if (mode === 'login') {
-    tabLogin.className = 'flex-1 py-3 text-center text-sky-400 border-b-2 border-sky-500 bg-sky-500/5 font-bold transition';
-    tabReg.className = 'flex-1 py-3 text-center text-slate-400 hover:text-slate-200 font-medium transition';
+    tabLogin.className = 'flex-1 py-2.5 text-center text-sky-400 border-b-2 border-sky-500 bg-sky-500/5 font-bold';
+    tabReg.className = 'flex-1 py-2.5 text-center text-slate-400 hover:text-slate-200';
     if (fieldName) fieldName.classList.add('hidden');
     if (fieldEmail) fieldEmail.classList.add('hidden');
     if (btnSubmit) btnSubmit.textContent = 'Đăng Nhập Ngay';
   } else {
-    tabReg.className = 'flex-1 py-3 text-center text-sky-400 border-b-2 border-sky-500 bg-sky-500/5 font-bold transition';
-    tabLogin.className = 'flex-1 py-3 text-center text-slate-400 hover:text-slate-200 font-medium transition';
+    tabReg.className = 'flex-1 py-2.5 text-center text-sky-400 border-b-2 border-sky-500 bg-sky-500/5 font-bold';
+    tabLogin.className = 'flex-1 py-2.5 text-center text-slate-400 hover:text-slate-200';
     if (fieldName) fieldName.classList.remove('hidden');
     if (fieldEmail) fieldEmail.classList.remove('hidden');
     if (btnSubmit) btnSubmit.textContent = 'Tạo Tài Khoản Mới';
@@ -1198,7 +1207,7 @@ async function handleAuthSubmit() {
 
   if (!username || !password) {
     if (alertEl) {
-      alertEl.textContent = 'Vui lòng điền đầy đủ tên đăng nhập và mật khẩu.';
+      alertEl.textContent = 'Vui lòng điền tên đăng nhập và mật khẩu.';
       alertEl.classList.remove('hidden');
     }
     return;
@@ -1217,21 +1226,16 @@ async function handleAuthSubmit() {
     });
 
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.detail || 'Thao tác không thành công');
-    }
+    if (!res.ok) throw new Error(data.detail || 'Thao tác không thành công');
 
-    // Lưu phiên đăng nhập
     state.user = data.user;
     state.token = data.token;
     localStorage.setItem('radiovn_user', JSON.stringify(data.user));
     localStorage.setItem('radiovn_token', data.token);
 
-    updateUserMenuUI();
-    closeAuthModal();
+    updateUserUI();
+    closeAuthSheet();
     showToast(`Xin chào ${data.user.full_name || data.user.username}!`, 'success');
-
-    // Tải lại các kênh của người dùng
     fetchChannels();
 
   } catch (err) {
@@ -1242,227 +1246,166 @@ async function handleAuthSubmit() {
   }
 }
 
-// =============================================================================
-// FACEBOOK-STYLE USER PROFILE & AUTH DROPDOWN
-// =============================================================================
-let isUserDropdownOpen = false;
-
-function toggleUserDropdown(forceState) {
-  const menu = document.getElementById('userDropdownMenu');
-  const chevron = document.getElementById('userChevron');
-  const btn = document.getElementById('btnUserMenu');
-  if (!menu) return;
-
-  if (typeof forceState === 'boolean') {
-    isUserDropdownOpen = forceState;
-  } else {
-    isUserDropdownOpen = !isUserDropdownOpen;
-  }
-
-  if (isUserDropdownOpen) {
-    menu.classList.remove('hidden');
-    void menu.offsetWidth; // Force reflow
-    menu.classList.remove('opacity-0', 'translate-y-2');
-    menu.classList.add('opacity-100', 'translate-y-0');
-    if (chevron) chevron.classList.add('rotate-180');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-  } else {
-    menu.classList.remove('opacity-100', 'translate-y-0');
-    menu.classList.add('opacity-0', 'translate-y-2');
-    if (chevron) chevron.classList.remove('rotate-180');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-    setTimeout(() => {
-      if (!isUserDropdownOpen) {
-        menu.classList.add('hidden');
-      }
-    }, 200);
-  }
-}
-
-function closeUserDropdown() {
-  if (isUserDropdownOpen) {
-    toggleUserDropdown(false);
-  }
-}
-
-function updateUserMenuUI() {
-  const avatarInitials = document.getElementById('userAvatarInitials');
-  const onlineDot = document.getElementById('userOnlineDot');
-  const dropdownAvatar = document.getElementById('dropdownAvatarInitials');
-  const dropdownName = document.getElementById('dropdownUserName');
-  const dropdownEmail = document.getElementById('dropdownUserEmail');
-  const dropdownBadge = document.getElementById('dropdownUserBadge');
-  const loggedInSection = document.getElementById('dropdownLoggedInSection');
-  const guestSection = document.getElementById('dropdownGuestSection');
-
-  if (state.user) {
-    const displayName = state.user.full_name || state.user.username;
-    const initials = displayName.substring(0, 2).toUpperCase();
-
-    if (avatarInitials) avatarInitials.textContent = initials;
-    if (dropdownAvatar) dropdownAvatar.textContent = initials;
-    if (onlineDot) {
-      onlineDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-[#070b14]';
-    }
-    if (dropdownName) dropdownName.textContent = displayName;
-    if (dropdownEmail) dropdownEmail.textContent = state.user.email || `${state.user.username}@radiovn.ai`;
-    if (dropdownBadge) {
-      dropdownBadge.textContent = 'Thành Viên Đã Xác Thực';
-      dropdownBadge.className = 'inline-block mt-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30';
-    }
-
-    if (loggedInSection) loggedInSection.classList.remove('hidden');
-    if (guestSection) guestSection.classList.add('hidden');
-  } else {
-    // Guest state
-    if (avatarInitials) avatarInitials.innerHTML = '<i data-lucide="user" class="w-4 h-4"></i>';
-    if (dropdownAvatar) dropdownAvatar.innerHTML = '<i data-lucide="user" class="w-5 h-5 text-slate-300"></i>';
-    if (onlineDot) {
-      onlineDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-500 rounded-full ring-2 ring-[#070b14]';
-    }
-    if (dropdownName) dropdownName.textContent = 'Khách (Chưa đăng nhập)';
-    if (dropdownEmail) dropdownEmail.textContent = 'Đăng nhập để lưu & cá nhân hóa kênh';
-    if (dropdownBadge) {
-      dropdownBadge.textContent = 'Chế Độ Khách';
-      dropdownBadge.className = 'inline-block mt-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    }
-
-    if (loggedInSection) loggedInSection.classList.add('hidden');
-    if (guestSection) guestSection.classList.remove('hidden');
-  }
-
-  if (window.lucide) window.lucide.createIcons();
-}
-
 function handleLogout() {
   localStorage.removeItem('radiovn_user');
   localStorage.removeItem('radiovn_token');
   state.user = null;
   state.token = null;
 
-  closeUserDropdown();
-  updateUserMenuUI();
-  showToast('Đã đăng xuất khỏi tài khoản Radio VN.', 'info');
+  updateUserUI();
+  showToast('Đã đăng xuất tài khoản Radio VN.', 'info');
   fetchChannels();
+}
+
+function updateUserUI() {
+  const initialsEl = document.getElementById('userAvatarInitials');
+  const greetingName = document.getElementById('greetingUserName');
+  const profInitials = document.getElementById('profileAvatarInitials');
+  const profName = document.getElementById('profileUserName');
+  const profEmail = document.getElementById('profileUserEmail');
+  const profBadge = document.getElementById('profileUserBadge');
+  const authArea = document.getElementById('profileAuthActionArea');
+
+  if (state.user) {
+    const name = state.user.full_name || state.user.username;
+    const initials = name.substring(0, 2).toUpperCase();
+
+    if (initialsEl) initialsEl.textContent = initials;
+    if (greetingName) greetingName.textContent = name;
+    if (profInitials) profInitials.textContent = initials;
+    if (profName) profName.textContent = name;
+    if (profEmail) profEmail.textContent = state.user.email || `${state.user.username}@radiovn.ai`;
+    if (profBadge) {
+      profBadge.textContent = 'Thành Viên Đã Xác Thực';
+      profBadge.className = 'inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30';
+    }
+
+    if (authArea) {
+      authArea.innerHTML = `
+        <button type="button" id="btnProfileLogout" class="w-full py-2.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-98 transition">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Đăng Xuất Khỏi Thiết Bị</span>
+        </button>
+      `;
+      setTimeout(() => {
+        document.getElementById('btnProfileLogout')?.addEventListener('click', handleLogout);
+      }, 50);
+    }
+  } else {
+    // Guest State
+    if (initialsEl) initialsEl.innerHTML = '<i data-lucide="user" class="w-3.5 h-3.5"></i>';
+    if (greetingName) greetingName.textContent = 'Khách';
+    if (profInitials) profInitials.innerHTML = '<i data-lucide="user" class="w-5 h-5"></i>';
+    if (profName) profName.textContent = 'Khách (Chưa đăng nhập)';
+    if (profEmail) profEmail.textContent = 'Đăng nhập để đồng bộ & lưu kênh phát';
+    if (profBadge) {
+      profBadge.textContent = 'Chế Độ Khách';
+      profBadge.className = 'inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    }
+
+    if (authArea) {
+      authArea.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="btnProfileLogin" class="py-2 rounded-xl gradient-accent text-white font-bold text-xs text-center shadow-md active:scale-98">
+            🔑 Đăng nhập
+          </button>
+          <button type="button" id="btnProfileRegister" class="py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs text-center active:scale-98">
+            📝 Đăng ký
+          </button>
+        </div>
+      `;
+      setTimeout(() => {
+        document.getElementById('btnProfileLogin')?.addEventListener('click', () => openAuthSheet('login'));
+        document.getElementById('btnProfileRegister')?.addEventListener('click', () => openAuthSheet('register'));
+      }, 50);
+    }
+  }
+
+  if (window.lucide) window.lucide.createIcons();
 }
 
 // =============================================================================
 // DOM EVENT LISTENERS INITIALIZATION
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Khởi tạo visualizer
+  // Đồng hồ & Canvas
+  updateMobileClock();
   initCanvasVisualizer();
+  updateUserUI();
 
-  // Cập nhật giao diện người dùng
-  updateUserMenuUI();
-
-  // Lấy dữ liệu ban đầu
+  // Nạp dữ liệu
   fetchVoices();
   fetchChannels();
 
-  // Header buttons
-  document.getElementById('btnOpenWizard')?.addEventListener('click', () => openWizardModal());
-  document.getElementById('btnCloseWizard')?.addEventListener('click', () => closeWizardModal());
-  document.getElementById('btnEmptyCreate')?.addEventListener('click', () => openWizardModal());
-
-  // Facebook-Style User Dropdown Toggle
-  const btnUserMenu = document.getElementById('btnUserMenu');
-  btnUserMenu?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleUserDropdown();
-  });
-
-  // Click Outside to close Dropdown
-  document.addEventListener('click', (e) => {
-    const wrapper = document.getElementById('userMenuWrapper');
-    if (wrapper && !wrapper.contains(e.target)) {
-      closeUserDropdown();
-    }
-  });
-
-  // ESC key to close Dropdown
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeUserDropdown();
-    }
-  });
-
-  // Dropdown Action Buttons (Logged In)
-  document.getElementById('menuBtnMyChannels')?.addEventListener('click', () => {
-    closeUserDropdown();
-    // Chuyển sang xem danh sách kênh
-    const grid = document.getElementById('channelsGrid');
-    if (grid) {
-      grid.scrollIntoView({ behavior: 'smooth' });
-    }
-    showToast('Đang hiển thị danh sách kênh của bạn', 'info');
-  });
-
-  document.getElementById('menuBtnSettings')?.addEventListener('click', () => {
-    closeUserDropdown();
-    showToast('Cài đặt & Tùy chọn: Tính năng cấu hình nâng cao đang sẵn sàng!', 'info');
-  });
-
-  document.getElementById('menuBtnTheme')?.addEventListener('click', () => {
-    closeUserDropdown();
-    showToast('Chế độ tối (Dark Mode) chuẩn phòng thu đang được kích hoạt tối ưu!', 'info');
-  });
-
-  document.getElementById('menuBtnLogout')?.addEventListener('click', () => {
-    handleLogout();
-  });
-
-  // Dropdown Action Buttons (Guest)
-  document.getElementById('menuBtnLogin')?.addEventListener('click', () => {
-    closeUserDropdown();
-    setAuthMode('login');
-    openAuthModal();
-  });
-
-  document.getElementById('menuBtnRegister')?.addEventListener('click', () => {
-    closeUserDropdown();
-    setAuthMode('register');
-    openAuthModal();
-  });
-
-  document.getElementById('menuBtnQuickDemo')?.addEventListener('click', () => {
-    closeUserDropdown();
-    document.getElementById('authUsername').value = 'demo_user';
-    document.getElementById('authPassword').value = 'demo123';
-    setAuthMode('login');
-    openAuthModal();
-    handleAuthSubmit();
-  });
-
-  // Auth modal controls
-  document.getElementById('btnCloseAuthModal')?.addEventListener('click', () => closeAuthModal());
-  document.getElementById('authTabLogin')?.addEventListener('click', () => setAuthMode('login'));
-  document.getElementById('authTabRegister')?.addEventListener('click', () => setAuthMode('register'));
-  document.getElementById('btnSubmitAuth')?.addEventListener('click', handleAuthSubmit);
-
-  // Quick Demo Login in Auth Modal
-  document.getElementById('btnQuickDemoLogin')?.addEventListener('click', () => {
-    document.getElementById('authUsername').value = 'demo_user';
-    document.getElementById('authPassword').value = 'demo123';
-    handleAuthSubmit();
-  });
-
-  // Filter tabs
-  document.querySelectorAll('.filter-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.filter-tab').forEach(t => {
-        t.className = 'filter-tab px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
-      });
-      tab.className = 'filter-tab px-3.5 py-1.5 rounded-lg bg-sky-500 text-white font-semibold transition';
-      state.filter = tab.dataset.filter;
-      renderChannelsList();
+  // Bottom Nav items tab switching
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      if (target) switchTab(target);
     });
   });
 
-  // Search input
-  document.getElementById('channelSearchInput')?.addEventListener('input', (e) => {
-    state.searchQuery = e.target.value;
-    renderChannelsList();
+  // Center (+) Navigation Button -> Open Wizard
+  document.getElementById('btnNavCreate')?.addEventListener('click', () => openWizardModal());
+  document.getElementById('btnHeroCreate')?.addEventListener('click', () => openWizardModal());
+  document.getElementById('btnCreateMoreChannels')?.addEventListener('click', () => openWizardModal());
+  document.getElementById('btnViewAllChannels')?.addEventListener('click', () => switchTab('screenMyChannels'));
+
+  // Top Bar User Avatar -> Open Profile Bottom Sheet
+  document.getElementById('btnOpenProfileSheet')?.addEventListener('click', () => {
+    switchTab('screenProfile');
+  });
+
+  // Mini Player Click -> Expand to Fullscreen Player
+  document.getElementById('miniPlayerClickArea')?.addEventListener('click', openFullscreenPlayer);
+  document.getElementById('btnMiniExpand')?.addEventListener('click', openFullscreenPlayer);
+  document.getElementById('btnMiniPlayPause')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlayPause();
+  });
+
+  // Fullscreen Player Controls
+  document.getElementById('btnCloseFullPlayer')?.addEventListener('click', closeFullscreenPlayer);
+  document.getElementById('btnFullPlayPause')?.addEventListener('click', togglePlayPause);
+  document.getElementById('btnFullRewind')?.addEventListener('click', () => seekRelative(-10));
+  document.getElementById('btnFullForward')?.addEventListener('click', () => seekRelative(10));
+
+  document.getElementById('fullPlayerProgressBar')?.addEventListener('input', (e) => {
+    const percent = parseFloat(e.target.value);
+    state.currentTime = (percent / 100) * state.duration;
+    updatePlayerTimeline();
+  });
+
+  // Speed Chips in Full Player
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.speed-btn').forEach(b => {
+        b.className = 'speed-btn px-2 py-1 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-300';
+      });
+      btn.className = 'speed-btn active px-2 py-1 rounded-lg bg-sky-500 text-[10px] font-bold text-white';
+      state.playbackSpeed = parseFloat(btn.dataset.speed);
+      if (audioEngine.utterance) {
+        audioEngine.utterance.rate = state.playbackSpeed;
+      }
+    });
+  });
+
+  document.getElementById('btnFullViewScript')?.addEventListener('click', () => {
+    if (state.activeChannel) {
+      openScriptSheetForChannel(state.activeChannel.id);
+    }
+  });
+
+  document.getElementById('btnShareBroadcast')?.addEventListener('click', () => {
+    if (navigator.share && state.activeChannel) {
+      navigator.share({
+        title: state.activeChannel.name,
+        text: `Đang nghe bản tin Radio VN: ${state.activeChannel.name}`,
+        url: window.location.href
+      }).catch(() => {});
+    } else {
+      showToast('Đã sao chép link kênh phát thanh!', 'info');
+    }
   });
 
   // Hero Quick Preset buttons
@@ -1475,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Wizard Step 1 Sample prompt pills
+  // Wizard Sample prompt pills
   document.querySelectorAll('.sample-prompt-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const pInput = document.getElementById('wizPrompt');
@@ -1490,7 +1433,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnWizNext')?.addEventListener('click', () => {
     const step = state.wizard.currentStep;
 
-    // Validate Step 1
     if (step === 1) {
       const name = document.getElementById('wizChannelName').value.trim();
       const prompt = document.getElementById('wizPrompt').value.trim();
@@ -1514,15 +1456,13 @@ document.addEventListener('DOMContentLoaded', () => {
       state.wizard.contentType = contentType;
     }
 
-    // Validate Step 2
     if (step === 2) {
       if (state.wizard.sources.length === 0) {
-        showToast('Vui lòng giữ ít nhất 1 nguồn báo chí chính thống', 'warning');
+        showToast('Vui lòng giữ ít nhất 1 nguồn báo', 'warning');
         return;
       }
     }
 
-    // Validate Step 3
     if (step === 3) {
       const bMode = document.querySelector('input[name="wizBroadcastMode"]:checked')?.value || 'live';
       state.wizard.broadcastMode = bMode;
@@ -1541,78 +1481,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('btnCloseWizard')?.addEventListener('click', closeWizardModal);
   document.getElementById('btnWizFinish')?.addEventListener('click', submitCreateChannel);
-
-  // Whitelist verification button in Step 2
   document.getElementById('btnCheckWhitelist')?.addEventListener('click', checkCustomUrlWhitelist);
 
-  // Sticky Player Controls
-  document.getElementById('btnPlayPause')?.addEventListener('click', togglePlayPause);
-  document.getElementById('btnRewind')?.addEventListener('click', () => seekRelative(-10));
-  document.getElementById('btnForward')?.addEventListener('click', () => seekRelative(10));
-
-  // Progress Bar Seek
-  document.getElementById('playerProgressBar')?.addEventListener('input', (e) => {
-    const percent = parseFloat(e.target.value);
-    state.currentTime = (percent / 100) * state.duration;
-    updatePlayerTimeline();
-  });
-
-  // Playback Speed
-  document.getElementById('playerSpeedSelect')?.addEventListener('change', (e) => {
-    state.playbackSpeed = parseFloat(e.target.value);
-    if (audioEngine.utterance) {
-      audioEngine.utterance.rate = state.playbackSpeed;
-    }
-  });
-
-  // Volume Slider
-  document.getElementById('volumeSlider')?.addEventListener('input', (e) => {
-    state.volume = parseFloat(e.target.value);
-    state.isMuted = (state.volume === 0);
-    if (audioEngine.utterance) {
-      audioEngine.utterance.volume = state.volume;
-    }
-    const volIcon = document.getElementById('volumeIcon');
-    if (volIcon) {
-      volIcon.setAttribute('data-lucide', state.isMuted ? 'volume-x' : 'volume-2');
-      if (window.lucide) window.lucide.createIcons();
-    }
-  });
-
-  // Mute button
-  document.getElementById('btnMuteToggle')?.addEventListener('click', () => {
-    state.isMuted = !state.isMuted;
-    const volSlider = document.getElementById('volumeSlider');
-    const volIcon = document.getElementById('volumeIcon');
-
-    if (state.isMuted) {
-      if (volSlider) volSlider.value = 0;
-      if (volIcon) volIcon.setAttribute('data-lucide', 'volume-x');
-    } else {
-      if (volSlider) volSlider.value = state.volume || 0.8;
-      if (volIcon) volIcon.setAttribute('data-lucide', 'volume-2');
-    }
-    if (window.lucide) window.lucide.createIcons();
-  });
-
-  // Open Current Script Modal
-  document.getElementById('btnOpenCurrentScript')?.addEventListener('click', () => {
-    if (state.activeChannel) {
-      openScriptModalForChannel(state.activeChannel.id);
-    } else {
-      showToast('Chưa có kênh nào đang phát', 'info');
-    }
-  });
-
-  document.getElementById('btnCloseScriptModal')?.addEventListener('click', closeScriptModal);
-
-  // Copy Script Button
-  document.getElementById('btnCopyScript')?.addEventListener('click', () => {
-    const text = document.getElementById('scriptModalContent')?.innerText || '';
+  // Script Sheet Close & Copy
+  document.getElementById('btnCloseScriptSheet')?.addEventListener('click', closeScriptSheet);
+  document.getElementById('btnCopyScriptSheet')?.addEventListener('click', () => {
+    const text = document.getElementById('scriptSheetContent')?.innerText || '';
     if (text) {
       navigator.clipboard.writeText(text);
-      showToast('Đã sao chép kịch bản phát thanh vào bộ nhớ tạm!', 'success');
+      showToast('Đã sao chép kịch bản phát thanh!', 'success');
     }
+  });
+
+  // Auth Sheet Controls
+  document.getElementById('btnCloseAuthSheet')?.addEventListener('click', closeAuthSheet);
+  document.getElementById('authTabLogin')?.addEventListener('click', () => setAuthMode('login'));
+  document.getElementById('authTabRegister')?.addEventListener('click', () => setAuthMode('register'));
+  document.getElementById('btnSubmitAuth')?.addEventListener('click', handleAuthSubmit);
+  document.getElementById('btnQuickDemoLogin')?.addEventListener('click', () => {
+    document.getElementById('authUsername').value = 'demo_user';
+    document.getElementById('authPassword').value = 'demo123';
+    handleAuthSubmit();
+  });
+
+  // Filter Tabs on My Channels Screen
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.className = 'filter-tab flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white text-center transition';
+      });
+      tab.className = 'filter-tab active flex-1 py-1.5 rounded-lg bg-sky-500 text-white font-semibold text-center transition';
+      state.filter = tab.dataset.filter;
+      renderChannelsList();
+    });
+  });
+
+  document.getElementById('mobileSearchInput')?.addEventListener('input', (e) => {
+    state.searchQuery = e.target.value;
+    renderChannelsList();
   });
 });
